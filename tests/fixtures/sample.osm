@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- テスト用の小さな OSM データ。店名・位置は動作確認用の例。 -->
+<osm version="0.6" generator="hand">
+  <!-- 広域チェーン：静岡県と愛知県に4店。1店は wikidata なし（brand タグで束ねる） -->
+  <node id="1" lat="34.9725" lon="138.3880" version="1"><tag k="amenity" v="cafe"/><tag k="name" v="スターバックス コーヒー 静岡パルコ店"/><tag k="brand" v="スターバックス"/><tag k="brand:wikidata" v="Q37158"/></node>
+  <node id="2" lat="34.7045" lon="137.7340" version="1"><tag k="amenity" v="cafe"/><tag k="name" v="スターバックス コーヒー 浜松メイワン店"/><tag k="brand" v="スターバックス"/><tag k="brand:wikidata" v="Q37158"/></node>
+  <node id="3" lat="35.1700" lon="136.8820" version="1"><tag k="amenity" v="cafe"/><tag k="name" v="スターバックス コーヒー 名古屋駅中央コンコース店"/><tag k="brand" v="スターバックス"/><tag k="brand:wikidata" v="Q37158"/></node>
+  <node id="4" lat="35.1720" lon="136.8800" version="1"><tag k="amenity" v="cafe"/><tag k="name" v="スターバックス 名駅西口店"/><tag k="brand" v="スターバックス"/></node>
+  <!-- 地元チェーン：静岡県内に3店 -->
+  <node id="10" lat="34.9740" lon="138.3830" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="炭焼きレストランさわやか 静岡両替町店"/><tag k="brand" v="炭焼きレストランさわやか"/><tag k="cuisine" v="hamburger_steak"/></node>
+  <node id="11" lat="34.7100" lon="137.7300" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="炭焼きレストランさわやか 浜松鍛冶町店"/><tag k="brand" v="炭焼きレストランさわやか"/><tag k="cuisine" v="hamburger_steak"/></node>
+  <node id="12" lat="35.0100" lon="138.4800" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="炭焼きレストランさわやか 清水インター店"/><tag k="brand" v="炭焼きレストランさわやか"/><tag k="cuisine" v="hamburger_steak"/></node>
+  <!-- brand タグなし、同じ店名が3店（店名だけで束ねる） -->
+  <node id="20" lat="34.9700" lon="138.3900" version="1"><tag k="amenity" v="pub"/><tag k="name" v="居酒屋 花 静岡店"/></node>
+  <node id="21" lat="34.7050" lon="137.7360" version="1"><tag k="amenity" v="pub"/><tag k="name" v="居酒屋 花 浜松店"/></node>
+  <node id="22" lat="35.1710" lon="136.8830" version="1"><tag k="amenity" v="pub"/><tag k="name" v="居酒屋 花 名駅店"/></node>
+  <!-- 個人店 -->
+  <node id="30" lat="34.9730" lon="138.3850" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="鮨 まつ乃"/><tag k="cuisine" v="sushi"/></node>
+  <node id="31" lat="34.9760" lon="138.3870" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="静岡おでん ひさご"/><tag k="cuisine" v="oden;japanese"/></node>
+  <node id="32" lat="34.7060" lon="137.7330" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="うなぎ 川瀬"/><tag k="cuisine" v="unagi"/></node>
+  <!-- way の個人店 -->
+  <node id="100" lat="34.9710" lon="138.3920" version="1"/>
+  <node id="101" lat="34.9712" lon="138.3920" version="1"/>
+  <node id="102" lat="34.9712" lon="138.3922" version="1"/>
+  <way id="500" version="1"><nd ref="100"/><nd ref="101"/><nd ref="102"/><nd ref="100"/><tag k="amenity" v="restaurant"/><tag k="building" v="yes"/><tag k="name" v="洋食 ことり亭"/><tag k="cuisine" v="western"/></way>
+  <!-- 名前のない店は無視する -->
+  <node id="40" lat="34.9720" lon="138.3890" version="1"><tag k="amenity" v="cafe"/></node>
+  <!-- 駅：静岡駅は事業者ごとに2ノード（1つにまとめる） -->
+  <node id="200" lat="34.9717" lon="138.3890" version="1"><tag k="railway" v="station"/><tag k="name" v="静岡"/><tag k="operator" v="東海旅客鉄道"/></node>
+  <node id="201" lat="34.9719" lon="138.3893" version="1"><tag k="public_transport" v="station"/><tag k="train" v="yes"/><tag k="name" v="静岡"/><tag k="operator" v="東海道新幹線"/></node>
+  <node id="202" lat="34.7038" lon="137.7350" version="1"><tag k="railway" v="station"/><tag k="name" v="浜松"/><tag k="operator" v="東海旅客鉄道"/></node>
+  <node id="203" lat="35.1709" lon="136.8815" version="1"><tag k="railway" v="station"/><tag k="name" v="名古屋"/><tag k="operator" v="東海旅客鉄道"/></node>
+  <!-- 同じ駅名が離れた2か所にある -->
+  <node id="204" lat="35.0500" lon="137.2000" version="1"><tag k="railway" v="station"/><tag k="name" v="本町"/><tag k="operator" v="テスト鉄道A"/></node>
+  <node id="205" lat="34.9000" lon="138.2000" version="1"><tag k="railway" v="station"/><tag k="name" v="本町"/><tag k="operator" v="テスト鉄道B"/></node>
+</osm>

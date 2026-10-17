@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ジモト飯</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#f3f5ef; --surface:#fff; --fg:#1f2a1c; --muted:#66705f; --line:#d9ded2;
+  --accent:#3f6b34; --accent-soft:#e2ecd9; --local:#b5781f; --local-soft:#f6ead6;
+  --chain:#8a8f86; --chain-soft:#ebede8; --danger:#a8382a;
+  --f-display:"Zen Old Mincho","Hiragino Mincho ProN",serif;
+  --f-body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root{
+  --bg:#141a13; --surface:#1c241a; --fg:#e6ebe1; --muted:#9aa592; --line:#313b2d;
+  --accent:#8fc27c; --accent-soft:#25351f; --local:#e2a74e; --local-soft:#3a2d18;
+  --chain:#7d8578; --chain-soft:#262b24; --danger:#e07b6c; color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 var(--f-body);
+  padding:max(16px,env(safe-area-inset-top)) max(16px,env(safe-area-inset-right)) 40px max(16px,env(safe-area-inset-left))}
+.wrap{max-width:1100px;margin:0 auto;display:grid;gap:16px}
+h1{font-family:var(--f-display);font-size:1.8rem;margin:0}
+header p{margin:2px 0 0;color:var(--muted)}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:16px;display:grid;gap:12px}
+.modes{display:flex;gap:4px;background:var(--bg);border-radius:8px;padding:4px;width:fit-content;flex-wrap:wrap}
+.mode{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:500;padding:6px 14px;border-radius:6px;cursor:pointer}
+.mode[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+form{display:flex;gap:8px;flex-wrap:wrap}
+form input{flex:1 1 200px;min-width:0;font:inherit;font-size:1rem;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--fg)}
+.btn{font:inherit;font-weight:700;border:0;border-radius:6px;padding:10px 18px;background:var(--accent);color:var(--surface);cursor:pointer}
+.btn:disabled{opacity:.6;cursor:progress}
+.msg{margin:0;font-size:.88rem;color:var(--muted)}
+.msg.err{color:var(--danger)}
+.choices{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:999px;padding:5px 13px;font:inherit;font-size:.85rem;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--surface)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+details summary{cursor:pointer;font-weight:500}
+.ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px 24px;margin-top:10px}
+.ctrl label{display:flex;justify-content:space-between;font-size:.9rem}
+.ctrl output{font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.summary{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:.9rem;color:var(--muted)}
+.summary b{color:var(--fg);font-variant-numeric:tabular-nums}
+.main{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:16px}
+@media (max-width:780px){.main{grid-template-columns:minmax(0,1fr)}}
+#map{height:460px;border-radius:10px;border:1px solid var(--line)}
+@media (max-width:780px){#map{height:320px}}
+ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;align-content:start}
+.shop{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px;cursor:pointer}
+.shop:hover{border-color:var(--accent)}
+.shop .nm{font-weight:700}
+.shop .nm a{color:inherit}
+.shop .meta{grid-column:1;font-size:.8rem;color:var(--muted)}
+.badge{grid-row:1/3;grid-column:2;align-self:center;font-size:.74rem;font-weight:700;padding:3px 9px;border-radius:4px;white-space:nowrap}
+.b-indie{color:var(--accent);background:var(--accent-soft)}
+.b-local{color:var(--local);background:var(--local-soft)}
+.b-chain{color:var(--chain);background:var(--chain-soft)}
+.shop.out{opacity:.5}.shop.out .nm{text-decoration:line-through}
+.empty{color:var(--muted);padding:16px;border:1px dashed var(--line);border-radius:8px}
+.attr{font-size:.75rem;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ジモト飯</h1>
+    <p>全国チェーンを外して、その土地の店と地元チェーンを探します。</p>
+  </header>
+
+  <section class="panel">
+    <div class="modes" role="tablist">
+      <button class="mode" role="tab" data-mode="here" aria-selected="false">現在地</button>
+      <button class="mode" role="tab" data-mode="station" aria-selected="true">駅名</button>
+      <button class="mode" role="tab" data-mode="keyword" aria-selected="false">キーワード</button>
+    </div>
+    <form id="form">
+      <input id="station" placeholder="駅名（例：浜松）" autocomplete="off" aria-label="駅名">
+      <input id="q" placeholder="料理・店名（任意）" autocomplete="off" aria-label="キーワード">
+      <button class="btn" id="go">検索</button>
+    </form>
+    <p class="msg" id="msg"></p>
+    <div class="choices" id="choices"></div>
+    <details>
+      <summary>チェーン判定の条件</summary>
+      <div class="ctrls">
+        <div class="ctrl"><label for="minStores">店舗数がこれ以上 <output id="oStores"></output></label>
+          <input id="minStores" type="range" min="2" max="300" value="20"></div>
+        <div class="ctrl"><label for="minPrefs">展開都道府県がこれ以上 <output id="oPrefs"></output></label>
+          <input id="minPrefs" type="range" min="1" max="47" value="4"></div>
+      </div>
+      <div class="choices" style="margin-top:10px">
+        <button class="chip" id="tHide" type="button" aria-pressed="true">除外した店を隠す</button>
+        <button class="chip" id="tLocal" type="button" aria-pressed="false">地元チェーンも除外</button>
+      </div>
+    </details>
+    <div class="summary" id="summary"></div>
+  </section>
+
+  <div class="main">
+    <div id="map"></div>
+    <div>
+      <ul id="list"><li class="empty">駅名を入れるか、現在地で検索してください。</li></ul>
+      <p class="attr" id="attr"></p>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const LABEL = {indie:"個人店", local:"地元チェーン", chain:"広域チェーン"};
+const COLOR = {indie:"--accent", local:"--local", chain:"--chain"};
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const state = {mode:"station", data:null, minStores:20, minPrefs:4, hide:true, local:false, minSpread:150, minNameGroup:3};
+
+// 地図
+const map = L.map("map").setView([35.68, 139.76], 13);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19,
+  attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(map);
+const layer = L.layerGroup().addTo(map);
+
+// サーバーと同じ判定（スライダーを動かしたときに再検索せずに判定し直す）
+function classify(b){
+  if(!b) return "indie";
+  if(b.source==="name" && b.stores < state.minNameGroup) return "indie";
+  const wide = b.prefs != null ? b.prefs >= state.minPrefs : b.spread_km >= state.minSpread;
+  return b.stores >= state.minStores && wide ? "chain" : "local";
+}
+const isOut = c => c==="chain" || (state.local && c==="local");
+
+function setMode(m){
+  state.mode = m;
+  document.querySelectorAll(".mode").forEach(b => b.setAttribute("aria-selected", b.dataset.mode===m));
+  $("station").hidden = m !== "station";
+  $("q").placeholder = m==="keyword" ? "料理・店名と地名（例：うなぎ 浜松）" : "料理・店名（任意）";
+  $("go").textContent = m==="here" ? "現在地で探す" : "検索";
+  $("choices").innerHTML = "";
+  msg("");
+}
+function msg(t, err){ $("msg").textContent = t; $("msg").className = "msg" + (err ? " err" : ""); }
+
+function here(){
+  return new Promise((ok, ng) => {
+    if(!navigator.geolocation) return ng(new Error("このブラウザは位置情報に対応していません"));
+    navigator.geolocation.getCurrentPosition(p => ok(p.coords), e => ng(new Error(
+      e.code===1 ? "位置情報の利用が許可されていません。ブラウザの設定で許可してください" : "現在地を取得できませんでした")),
+      {enableHighAccuracy:true, timeout:10000});
+  });
+}
+
+async function search(extra = {}){
+  const p = new URLSearchParams({radius: 1000, ...extra});
+  const q = $("q").value.trim();
+  if(q) p.set("q", q);
+  if(state.mode==="station" && !extra.station_id){
+    const st = $("station").value.trim();
+    if(!st) return msg("駅名を入力してください", true);
+    p.set("station", st);
+  }
+  if(state.mode==="keyword" && !q) return msg("キーワードを入力してください", true);
+  $("go").disabled = true; msg("検索しています…");
+  try{
+    if(state.mode==="here"){ const c = await here(); p.set("lat", c.latitude); p.set("lng", c.longitude); }
+    const r = await fetch("/api/search?" + p);
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.detail || "検索に失敗しました");
+    if(d.needs_choice){
+      msg("同じ名前の駅が複数あります。どれか選んでください。");
+      $("choices").innerHTML = d.stations.map(s =>
+        `<button class="chip" type="button" data-id="${s.id}">${esc(s.name)}駅（${esc(s.pref || "")} ${esc(s.operators)}）</button>`).join("");
+      return;
+    }
+    $("choices").innerHTML = "";
+    state.data = d; msg(d.center ? `${d.center.label} の周辺` : `「${q}」の検索結果`);
+    render(true);
+  }catch(e){ msg(e.message, true); }
+  finally{ $("go").disabled = false; }
+}
+
+function render(fit){
+  $("oStores").textContent = state.minStores + "店";
+  $("oPrefs").textContent = state.minPrefs + "都道府県";
+  const d = state.data; if(!d) return;
+  const rows = d.results.map(r => ({...r, c: classify(r.brand)}));
+  const cnt = {indie:0, local:0, chain:0}; rows.forEach(r => cnt[r.c]++);
+  const shown = rows.filter(r => !(state.hide && isOut(r.c)));
+  $("summary").innerHTML = `<span>表示 <b>${rows.filter(r=>!isOut(r.c)).length}</b> / ${rows.length}件</span>
+    <span>個人店 <b>${cnt.indie}</b></span><span>地元チェーン <b>${cnt.local}</b></span><span>広域チェーン <b>${cnt.chain}</b></span>`;
+  $("list").innerHTML = shown.length ? shown.map((r, i) => {
+    const b = r.brand;
+    const bits = [r.genre, r.distance_m != null ? `約${r.distance_m}m` : r.address,
+      r.rating ? `★${r.rating}` : "", b ? `${b.name}：${b.stores.toLocaleString()}店／${b.prefs ?? "?"}都道府県` : ""].filter(Boolean);
+    return `<li class="shop${isOut(r.c) ? " out" : ""}" data-i="${i}">
+      <span class="nm"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></span>
+      <span class="badge b-${r.c}">${LABEL[r.c]}${isOut(r.c) ? "（除外）" : ""}</span>
+      <span class="meta">${esc(bits.join("・"))}</span></li>`;
+  }).join("") : `<li class="empty">条件に合う店がありません。「除外した店を隠す」をオフにすると除外された店も見られます。</li>`;
+  $("attr").textContent = d.provider==="google" ? "店舗情報：Google" : "店舗情報：© OpenStreetMap contributors";
+
+  layer.clearLayers();
+  const pts = [];
+  if(d.center){ L.circleMarker([d.center.lat, d.center.lng], {radius:7, color:css("--fg"), weight:3, fillColor:css("--surface"), fillOpacity:1})
+    .bindTooltip(esc(d.center.label)).addTo(layer); pts.push([d.center.lat, d.center.lng]); }
+  state.markers = shown.map(r => {
+    const m = L.circleMarker([r.lat, r.lng], {radius:7, weight:2, color:css("--surface"),
+      fillColor:css(COLOR[r.c]), fillOpacity:isOut(r.c) ? .35 : 1}).bindPopup(`<b>${esc(r.name)}</b><br>${LABEL[r.c]}`).addTo(layer);
+    pts.push([r.lat, r.lng]); return m;
+  });
+  if(fit && pts.length) map.fitBounds(pts, {padding:[24, 24], maxZoom:16});
+}
+
+document.querySelectorAll(".mode").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
+$("form").addEventListener("submit", e => { e.preventDefault(); search(); });
+$("choices").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if(b) search({station_id: b.dataset.id}); });
+$("list").addEventListener("click", e => { const li = e.target.closest(".shop"); if(li && !e.target.closest("a")) state.markers[+li.dataset.i]?.openPopup(); });
+$("minStores").addEventListener("input", e => { state.minStores = +e.target.value; render(); });
+$("minPrefs").addEventListener("input", e => { state.minPrefs = +e.target.value; render(); });
+for(const [id, key] of [["tHide","hide"], ["tLocal","local"]])
+  $(id).addEventListener("click", e => { state[key] = !state[key]; e.currentTarget.setAttribute("aria-pressed", state[key]); render(); });
+setMode("station"); render();
+</script>
+</body>
+</html>
