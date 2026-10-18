@@ -52,35 +52,50 @@ def _is_station(tags: dict) -> bool:
 
 
 def read_osm(path: str) -> tuple[list[dict], list[dict]]:
-    """飲食店と駅を取り出す。way は構成ノードの平均を位置とする。"""
-    pois: list[dict] = []
-    stations: list[dict] = []
-    fp = (
-        osmium.FileProcessor(path)
-        .with_locations()
-        .with_filter(osmium.filter.KeyFilter("amenity", "railway", "public_transport"))
-    )
+    """飲食店と駅を取り出す。way は構成ノードの平均を位置とする。
+
+    全国版（数億ノード）でもメモリに収まるよう、全ノードの位置表は作らずに2回読む。
+    1回目：タグ付きのノードと way を読み、必要な way の構成ノード ID を集める
+    2回目：その ID のノードだけ位置を読む
+    """
+    found: list[tuple[str, dict, object]] = []  # (oid, tags, 位置 or 構成ノードID列)
+    need: set[int] = set()
+    fp = osmium.FileProcessor(path, osmium.osm.NODE | osmium.osm.WAY).with_filter(
+        osmium.filter.KeyFilter("amenity", "railway", "public_transport"))
     for obj in fp:
-        if obj.is_relation():
-            continue
         tags = {t.k: t.v for t in obj.tags}
-        name = tags.get("name")
-        if not name:
+        if not tags.get("name"):
             continue
-        food = tags.get("amenity") in FOOD_AMENITIES
-        station = not food and _is_station(tags)
-        if not (food or station):
+        if not (tags.get("amenity") in FOOD_AMENITIES or _is_station(tags)):
             continue
         if obj.is_node():
-            lat, lng = obj.location.lat, obj.location.lon
-            oid = f"n{obj.id}"
+            if obj.location.valid():
+                found.append((f"n{obj.id}", tags, (obj.location.lat, obj.location.lon)))
         else:
-            locs = [n.location for n in obj.nodes if n.location.valid()]
-            if not locs:
+            refs = [n.ref for n in obj.nodes]
+            need.update(refs)
+            found.append((f"w{obj.id}", tags, refs))
+
+    locs: dict[int, tuple[float, float]] = {}
+    if need:
+        fp = osmium.FileProcessor(path, osmium.osm.NODE).with_filter(osmium.filter.IdFilter(need))
+        for n in fp:
+            if n.location.valid():
+                locs[n.id] = (n.location.lat, n.location.lon)
+
+    pois: list[dict] = []
+    stations: list[dict] = []
+    for oid, tags, where in found:
+        if oid[0] == "n":
+            lat, lng = where
+        else:
+            pts = [locs[r] for r in dict.fromkeys(where) if r in locs]  # 閉じた way の重複点を除く
+            if not pts:
                 continue
-            lat = sum(l.lat for l in locs) / len(locs)
-            lng = sum(l.lon for l in locs) / len(locs)
-            oid = f"w{obj.id}"
+            lat = sum(p[0] for p in pts) / len(pts)
+            lng = sum(p[1] for p in pts) / len(pts)
+        name = tags["name"]
+        food = tags.get("amenity") in FOOD_AMENITIES
         if food:
             pois.append({
                 "osm_id": oid, "name": nfkc(name), "lat": lat, "lng": lng,

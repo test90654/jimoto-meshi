@@ -56,7 +56,19 @@ curl -L -o data/japan.geojson https://raw.githubusercontent.com/dataofjapan/land
 curl -L -o data/chubu-latest.osm.pbf https://download.geofabrik.de/asia/japan/chubu-latest.osm.pbf
 ```
 
-全国版は `https://download.geofabrik.de/asia/japan-latest.osm.pbf` です。**ブランドの店舗数・都道府県数を正しく数えるには全国版が必要**です（地方版だと全国チェーンも「地元チェーン」に見えます）。
+全国版は `https://download.geofabrik.de/asia/japan-latest.osm.pbf`（約2GB）です。**ブランドの店舗数・都道府県数を正しく数えるには全国版が必要**です（地方版だと全国チェーンも「地元チェーン」に見えます）。ビルドはファイルを2回読み、必要な点の位置だけを取り出す方式なので、全国版でもメモリの使用量を抑えられます。
+
+#### Windows（PowerShell）の場合
+
+PowerShell の `curl` は別のコマンドなので `curl.exe` と書き、パスの区切りは `\` にします。フォルダ名に日本語が入らない場所（例：`C:\dev`）に置くと安全です。
+
+```powershell
+mkdir data
+curl.exe -L -o data\japan.geojson https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson
+curl.exe -L -o data\japan-latest.osm.pbf https://download.geofabrik.de/asia/japan-latest.osm.pbf
+python -m jimoto.build data\japan-latest.osm.pbf --prefectures data\japan.geojson --out data\jimoto.db
+python -m uvicorn jimoto.server:app
+```
 
 ### 2. データベースを作る
 
