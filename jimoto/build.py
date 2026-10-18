@@ -166,13 +166,17 @@ def group_key(p: dict, wikidata_by_brand: dict[str, str]) -> tuple[str, str]:
     return "n:" + strip_branch(p["name"]), "name"
 
 
+WIDE_PREFS = 10  # これ以上の都道府県にあるブランドは、どこの同名店でも合流させる
+DISTINCT_LEN = 5  # これ以上の長さの店名は、遠くても同じブランドとみなす
+
+
 def build_brands(pois: list[dict], has_prefs: bool, min_stores: int = 2, min_name_group: int = 3,
                  merge_km: float = 100.0) -> list[dict]:
     """ブランドごとに店舗数・都道府県数・分布範囲をまとめる。各 poi に brand_key を書き込む。
 
     1. brand:wikidata / brand タグのある店を束ねる（同じブランド名のグループは1つにまとめる）
     2. タグのない店は、支店名を除いた店名がブランドの別名と一致し、かつ近くに
-       そのブランドの店があれば（同じ都道府県、または merge_km 以内）そのブランドに加える
+       偶然の同名でなさそうなら（全国ブランド・長い名前・merge_km 以内に同ブランドの店がある）加える
        → 「日高屋」とだけ登録された店も日高屋として数える。遠くの同名の別の店は混ぜない
     3. 残りの店は、支店名を除いた店名が同じものを束ねる
     """
@@ -212,16 +216,19 @@ def build_brands(pois: list[dict], has_prefs: bool, min_stores: int = 2, min_nam
                 alias_owner.setdefault(a, key)
     pref_sets = {k: {p.get("pref") for p in m if p.get("pref")} for k, m in tagged.items()}
 
-    def near(key: str, p: dict) -> bool:
-        if has_prefs and p.get("pref"):
-            return p["pref"] in pref_sets[key]
+    def near(key: str, p: dict, alias: str) -> bool:
+        """同名の別の店を混ぜないための確認。どれかに当てはまれば同じブランドとみなす。"""
+        if len(pref_sets[key]) >= WIDE_PREFS:  # 全国にあるブランド
+            return True
+        if len(alias) >= DISTINCT_LEN:  # 「世界の山ちゃん」のように偶然かぶりにくい長い名前
+            return True
         return any(haversine_km(p["lat"], p["lng"], q["lat"], q["lng"]) <= merge_km for q in tagged[key])
 
     rest: dict[str, list[dict]] = defaultdict(list)
     for p in untagged:
         k = strip_branch(p["name"])
         owner = alias_owner.get(k)
-        if owner and near(owner, p):
+        if owner and near(owner, p, k):
             tagged[owner].append(p)
         elif k:
             rest["n:" + k].append(p)

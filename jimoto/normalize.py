@@ -22,9 +22,16 @@ def nfkc(s: str | None) -> str:
     return unicodedata.normalize("NFKC", s or "").strip()
 
 
+_KATA2HIRA = {c: c - 0x60 for c in range(ord("ァ"), ord("ヶ") + 1)}
+
+
 def squash(s: str | None) -> str:
-    """NFKC にそろえ、空白を除き、英字を小文字にする。照合用のキー。"""
-    return _SPACE.sub("", nfkc(s)).lower()
+    """照合用のキー。NFKC にそろえ、空白を除き、英字を小文字に、カタカナをひらがなにする。
+
+    >>> squash("8番ラーメン") == squash("8番らーめん")
+    True
+    """
+    return _SPACE.sub("", nfkc(s)).lower().translate(_KATA2HIRA)
 
 
 def drop_branch(name: str | None) -> str:

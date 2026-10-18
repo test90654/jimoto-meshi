@@ -1,12 +1,13 @@
 from jimoto.classify import Brand, BrandIndex, Rules, classify, is_excluded
-from jimoto.normalize import strip_branch
+from jimoto.normalize import squash, strip_branch
 
 
 def test_strip_branch():
-    assert strip_branch("スターバックス コーヒー 静岡パルコ店") == "スターバックスコーヒー"
-    assert strip_branch("ｽﾀｰﾊﾞｯｸｽ 渋谷店") == "スターバックス"
+    assert strip_branch("スターバックス コーヒー 静岡パルコ店") == squash("スターバックスコーヒー")
+    assert strip_branch("ｽﾀｰﾊﾞｯｸｽ 渋谷店") == squash("スターバックス")
     assert strip_branch("鮨 まつ乃") == "鮨まつ乃"
-    assert strip_branch("マクドナルド（静岡駅前）") == "マクドナルド"
+    assert strip_branch("マクドナルド（静岡駅前）") == squash("マクドナルド")
+    assert squash("8番ラーメン") == squash("8番らーめん")
 
 
 SB = Brand("wd:Q37158", "スターバックス", 1900, 47, 1500, "wikidata", "Q37158", ["スターバックス", "スターバックスコーヒー"])

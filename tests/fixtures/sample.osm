@@ -9,10 +9,10 @@
   <!-- 地元チェーン：静岡県内に3店 -->
   <node id="10" lat="34.9740" lon="138.3830" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="炭焼きレストランさわやか 静岡両替町店"/><tag k="brand" v="炭焼きレストランさわやか"/><tag k="cuisine" v="hamburger_steak"/></node>
   <node id="11" lat="34.7100" lon="137.7300" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="炭焼きレストランさわやか 浜松鍛冶町店"/><tag k="brand" v="炭焼きレストランさわやか"/><tag k="cuisine" v="hamburger_steak"/></node>
-  <node id="12" lat="35.0100" lon="138.4800" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="炭焼きレストランさわやか 清水インター店"/><tag k="brand" v="炭焼きレストランさわやか"/><tag k="cuisine" v="hamburger_steak"/></node>
-  <!-- タグなしの「炭焼きレストランさわやか」：静岡県内ならさわやかに合流、遠い愛知県の同名店は合流しない -->
-  <node id="13" lat="34.9800" lon="138.4000" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="炭焼きレストランさわやか 長田店"/></node>
-  <node id="14" lat="35.1800" lon="136.9000" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="炭焼きレストランさわやか"/></node>
+  <node id="12" lat="35.0100" lon="138.4800" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="さわやか 清水インター店"/><tag k="brand" v="炭焼きレストランさわやか"/><tag k="cuisine" v="hamburger_steak"/></node>
+  <!-- タグなしの「さわやか」：近く（静岡県内）ならさわやかに合流。遠い愛知県の短い同名店は別の店とみなして合流しない -->
+  <node id="13" lat="34.9800" lon="138.4000" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="さわやか 長田店"/></node>
+  <node id="14" lat="35.9000" lon="136.6000" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="さわやか"/></node>
   <!-- brand タグなし、同じ店名が3店（店名だけで束ねる） -->
   <node id="20" lat="34.9700" lon="138.3900" version="1"><tag k="amenity" v="pub"/><tag k="name" v="居酒屋 花 静岡店"/></node>
   <node id="21" lat="34.7050" lon="137.7360" version="1"><tag k="amenity" v="pub"/><tag k="name" v="居酒屋 花 浜松店"/></node>
