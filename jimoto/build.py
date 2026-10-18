@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import re
 import sqlite3
 import sys
 import time
@@ -166,6 +167,7 @@ def group_key(p: dict, wikidata_by_brand: dict[str, str]) -> tuple[str, str]:
     return "n:" + strip_branch(p["name"]), "name"
 
 
+_JA = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")
 WIDE_PREFS = 10  # これ以上の都道府県にあるブランドは、どこの同名店でも合流させる
 DISTINCT_LEN = 5  # これ以上の長さの店名は、遠くても同じブランドとみなす
 
@@ -214,6 +216,17 @@ def build_brands(pois: list[dict], has_prefs: bool, min_stores: int = 2, min_nam
         for a in names:
             if len(a) >= 2:
                 alias_owner.setdefault(a, key)
+    # 小さいタグ付きグループの名前が大きいグループの別名なら合流させる
+    # （「8番らーめん」の brand タグの店を、英語名 Hachiban Ramen の wikidata グループへ）
+    for key in sorted(tagged, key=lambda k: len(tagged[k])):
+        if key not in tagged:
+            continue
+        names = Counter(squash(p["brand"]) for p in tagged[key] if p["brand"])
+        top = names.most_common(1)[0][0] if names else ""
+        owner = alias_owner.get(top)
+        if owner and owner != key and owner in tagged and len(tagged[owner]) >= len(tagged[key]):
+            tagged[owner].extend(tagged.pop(key))
+    alias_owner = {a: k for a, k in alias_owner.items() if k in tagged}
     pref_sets = {k: {p.get("pref") for p in m if p.get("pref")} for k, m in tagged.items()}
 
     def near(key: str, p: dict, alias: str) -> bool:
@@ -256,10 +269,11 @@ def build_brands(pois: list[dict], has_prefs: bool, min_stores: int = 2, min_nam
         prefs = len({p["pref"] for p in members if p.get("pref")}) if has_prefs else None
         brand_names = Counter(p["brand"] for p in members if p["brand"])
         stripped = Counter(strip_branch(p["name"]) for p in members)
-        if brand_names:
-            name = brand_names.most_common(1)[0][0]
-        else:
-            name = Counter(drop_branch(p["name"]) for p in members).most_common(1)[0][0]
+        shop_names = Counter(drop_branch(p["name"]) for p in members)
+        ja_brands = [n for n, _ in brand_names.most_common() if _JA.search(n)]
+        ja_shops = [n for n, _ in shop_names.most_common() if _JA.search(n)]
+        # 表示名は日本語を優先する（brand タグが英語だけのブランドもある）
+        name = (ja_brands or ja_shops or [n for n, _ in brand_names.most_common()] or [shop_names.most_common(1)[0][0]])[0]
         aliases = {squash(n) for n in brand_names}
         aliases |= {squash(p["brand_en"]) for p in members if p.get("brand_en")}
         # 2店舗以上で使われている「支店名を除いた店名」も別名にする
