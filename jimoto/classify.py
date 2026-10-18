@@ -5,6 +5,8 @@
 - 広がり：展開している都道府県の数（都道府県データがない場合は店舗の分布範囲 km）
 
 両方がしきい値以上なら「広域チェーン」として除外し、そうでなければ「地元チェーン」として残す。
+ただし店舗数がとても多いブランド（min_stores_any 以上）は、首都圏などに集中していても広域チェーンとする。
+利用者が直した判定（overrides）は、これらの規則より優先する。
 """
 from __future__ import annotations
 
@@ -40,6 +42,7 @@ class Rules:
     min_stores: int = 20
     min_prefs: int = 4
     min_spread_km: float = 150.0  # 都道府県データがない場合に使う
+    min_stores_any: int = 40  # この店舗数以上なら、広がりに関係なく広域チェーン
     exclude_local: bool = False  # 地元チェーンも除外するか
     min_name_group: int = 3  # 店名だけで束ねたグループは、この店舗数以上でないとチェーン扱いしない
 
@@ -53,6 +56,8 @@ def classify(brand: Brand | None, rules: Rules) -> Category:
         wide = brand.prefs >= rules.min_prefs
     else:
         wide = brand.spread_km >= rules.min_spread_km
+    if brand.stores >= rules.min_stores_any:
+        return "chain"
     return "chain" if brand.stores >= rules.min_stores and wide else "local"
 
 

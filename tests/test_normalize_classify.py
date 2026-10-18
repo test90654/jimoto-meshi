@@ -33,9 +33,15 @@ def test_classify():
 
 
 def test_spread_fallback_without_prefectures():
-    b = Brand("b:x", "X", 50, None, 400, "brand")
+    b = Brand("b:x", "X", 30, None, 400, "brand")
     assert classify(b, Rules()) == "chain"
-    assert classify(Brand("b:y", "Y", 50, None, 60, "brand"), Rules()) == "local"
+    assert classify(Brand("b:y", "Y", 30, None, 60, "brand"), Rules()) == "local"
+
+
+def test_many_stores_in_small_area_is_chain():
+    komoro = Brand("n:小諸そば", "小諸そば", 43, 3, 38, "name")
+    assert classify(komoro, Rules()) == "chain"
+    assert classify(komoro, Rules(min_stores_any=100)) == "local"
 
 
 def test_name_group_needs_enough_stores():

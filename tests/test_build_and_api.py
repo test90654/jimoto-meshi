@@ -24,7 +24,8 @@ def test_build_brands(db):
     brands = {b["name"]: b for b in json.loads(db.with_name("brands.json").read_text())}
     sb = brands["スターバックス"]
     assert sb["stores"] == 4 and sb["prefs"] == 2  # wikidata のない1店も束ねられている
-    assert brands["炭焼きレストランさわやか"]["prefs"] == 1
+    sawa = brands["炭焼きレストランさわやか"]
+    assert sawa["stores"] == 4 and sawa["prefs"] == 1  # 県内のタグなし1店は合流、愛知県の同名店は合流しない
     assert brands["居酒屋 花"]["source"] == "name"
     assert "鮨 まつ乃" not in brands
 
@@ -61,6 +62,24 @@ def test_same_name_stations(db):
     assert d["needs_choice"] and len(d["stations"]) == 2
     sid = d["stations"][0]["id"]
     assert c.get("/api/search", params={"station_id": sid}).json()["center"]["label"] == "本町駅"
+
+
+def test_report_overrides_category(db):
+    c = TestClient(create_app(str(db), "osm"))
+    params = {"station": "静岡", **RULES}
+    r = next(x for x in c.get("/api/search", params=params).json()["results"] if x["name"] == "鮨 まつ乃")
+    assert r["category"] == "indie" and r["override"] is None
+    assert c.post("/api/report", json={"key": r["override_key"], "category": "chain"}).json()["ok"]
+    r = next(x for x in c.get("/api/search", params=params).json()["results"] if x["name"] == "鮨 まつ乃")
+    assert r["category"] == "chain" and r["excluded"] and r["override"] == "chain"
+    # 新しく起動しても残る
+    c2 = TestClient(create_app(str(db), "osm"))
+    r = next(x for x in c2.get("/api/search", params=params).json()["results"] if x["name"] == "鮨 まつ乃")
+    assert r["category"] == "chain"
+    c2.post("/api/report", json={"key": r["override_key"], "category": None})
+    r = next(x for x in c2.get("/api/search", params=params).json()["results"] if x["name"] == "鮨 まつ乃")
+    assert r["category"] == "indie"
+    assert c2.post("/api/report", json={"key": "x", "category": "foo"}).status_code == 400
 
 
 def test_errors(db):

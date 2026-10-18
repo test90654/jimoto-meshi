@@ -63,6 +63,11 @@ ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;align-content:start}
 .shop.out{opacity:.5}.shop.out .nm{text-decoration:line-through}
 .empty{color:var(--muted);padding:16px;border:1px dashed var(--line);border-radius:8px}
 .attr{font-size:.75rem;color:var(--muted)}
+.hint{color:var(--muted);font-size:.78rem}
+.fix{grid-column:1/3;display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.8rem;color:var(--muted);margin-top:4px}
+.fix[hidden]{display:none}
+.fixbtn{border:0;background:none;color:var(--muted);font:inherit;font-size:.78rem;text-decoration:underline;cursor:pointer;padding:0;grid-column:1}
+.mine{font-size:.72rem;color:var(--accent)}
 </style>
 </head>
 <body>
@@ -92,6 +97,9 @@ ul{list-style:none;margin:0;padding:0;display:grid;gap:8px;align-content:start}
           <input id="minStores" type="range" min="2" max="300" value="20"></div>
         <div class="ctrl"><label for="minPrefs">展開都道府県がこれ以上 <output id="oPrefs"></output></label>
           <input id="minPrefs" type="range" min="1" max="47" value="4"></div>
+        <div class="ctrl"><label for="minAny">この店舗数以上なら範囲に関係なく <output id="oAny"></output></label>
+          <input id="minAny" type="range" min="10" max="500" value="40">
+          <small class="hint">首都圏などに集中する大きなチェーン（小諸そばなど）向け</small></div>
       </div>
       <div class="choices" style="margin-top:10px">
         <button class="chip" id="tHide" type="button" aria-pressed="true">除外した店を隠す</button>
@@ -117,7 +125,7 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;
 const LABEL = {indie:"個人店", local:"地元チェーン", chain:"広域チェーン"};
 const COLOR = {indie:"--accent", local:"--local", chain:"--chain"};
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const state = {mode:"station", data:null, minStores:20, minPrefs:4, hide:true, local:false, minSpread:150, minNameGroup:3};
+const state = {mode:"station", data:null, minStores:20, minPrefs:4, minAny:40, hide:true, local:false, minSpread:150, minNameGroup:3, open:null};
 
 // 地図
 const map = L.map("map").setView([35.68, 139.76], 13);
@@ -126,10 +134,13 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {maxZoom:19,
 const layer = L.layerGroup().addTo(map);
 
 // サーバーと同じ判定（スライダーを動かしたときに再検索せずに判定し直す）
-function classify(b){
+function classify(r){
+  if(r.override) return r.override;
+  const b = r.brand;
   if(!b) return "indie";
   if(b.source==="name" && b.stores < state.minNameGroup) return "indie";
   const wide = b.prefs != null ? b.prefs >= state.minPrefs : b.spread_km >= state.minSpread;
+  if(b.stores >= state.minAny) return "chain";
   return b.stores >= state.minStores && wide ? "chain" : "local";
 }
 const isOut = c => c==="chain" || (state.local && c==="local");
@@ -155,7 +166,8 @@ function here(){
 }
 
 async function search(extra = {}){
-  const p = new URLSearchParams({radius: 1000, ...extra});
+  const p = new URLSearchParams({radius: 1000, min_stores: state.minStores, min_prefs: state.minPrefs,
+    min_stores_any: state.minAny, ...extra});
   const q = $("q").value.trim();
   if(q) p.set("q", q);
   if(state.mode==="station" && !extra.station_id){
@@ -183,13 +195,29 @@ async function search(extra = {}){
   finally{ $("go").disabled = false; }
 }
 
+function fixLabel(r){ return r.brand ? `「${r.brand.name}」の全店舗をどう扱うか` : "この店をどう扱うか"; }
+
+async function setOverride(r, category){
+  try{
+    const res = await fetch("/api/report", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({key: r.override_key, category: category || null, name: r.brand ? r.brand.name : r.name})});
+    if(!res.ok) throw new Error((await res.json()).detail || "保存できませんでした");
+    state.data.results.forEach(x => { if(x.override_key === r.override_key) x.override = category || null; });
+    state.open = null;
+    msg(category ? `「${r.brand ? r.brand.name : r.name}」を${LABEL[category]}として記録しました` : "自動の判定に戻しました");
+    render();
+  }catch(e){ msg(e.message, true); }
+}
+
 function render(fit){
   $("oStores").textContent = state.minStores + "店";
   $("oPrefs").textContent = state.minPrefs + "都道府県";
+  $("oAny").textContent = state.minAny + "店";
   const d = state.data; if(!d) return;
-  const rows = d.results.map(r => ({...r, c: classify(r.brand)}));
+  const rows = d.results.map(r => ({...r, c: classify(r)}));
   const cnt = {indie:0, local:0, chain:0}; rows.forEach(r => cnt[r.c]++);
   const shown = rows.filter(r => !(state.hide && isOut(r.c)));
+  state.shown = shown;
   $("summary").innerHTML = `<span>表示 <b>${rows.filter(r=>!isOut(r.c)).length}</b> / ${rows.length}件</span>
     <span>個人店 <b>${cnt.indie}</b></span><span>地元チェーン <b>${cnt.local}</b></span><span>広域チェーン <b>${cnt.chain}</b></span>`;
   $("list").innerHTML = shown.length ? shown.map((r, i) => {
@@ -199,7 +227,12 @@ function render(fit){
     return `<li class="shop${isOut(r.c) ? " out" : ""}" data-i="${i}">
       <span class="nm"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></span>
       <span class="badge b-${r.c}">${LABEL[r.c]}${isOut(r.c) ? "（除外）" : ""}</span>
-      <span class="meta">${esc(bits.join("・"))}</span></li>`;
+      <span class="meta">${esc(bits.join("・"))}</span>
+      <button class="fixbtn" type="button" data-fix="${i}">${r.override ? "直した判定を変える" : "判定を直す"}</button>
+      <span class="fix" ${state.open === r.override_key ? "" : "hidden"}>${esc(fixLabel(r))}：
+        ${["chain","local","indie"].map(c => `<button class="chip" type="button" data-set="${c}" data-i="${i}" aria-pressed="${r.override===c}">${LABEL[c]}</button>`).join("")}
+        ${r.override ? `<button class="chip" type="button" data-set="" data-i="${i}">自動の判定に戻す</button>` : ""}
+      </span></li>`;
   }).join("") : `<li class="empty">条件に合う店がありません。「除外した店を隠す」をオフにすると除外された店も見られます。</li>`;
   $("attr").textContent = d.provider==="google" ? "店舗情報：Google" : "店舗情報：© OpenStreetMap contributors";
 
@@ -218,9 +251,17 @@ function render(fit){
 document.querySelectorAll(".mode").forEach(b => b.addEventListener("click", () => setMode(b.dataset.mode)));
 $("form").addEventListener("submit", e => { e.preventDefault(); search(); });
 $("choices").addEventListener("click", e => { const b = e.target.closest("[data-id]"); if(b) search({station_id: b.dataset.id}); });
-$("list").addEventListener("click", e => { const li = e.target.closest(".shop"); if(li && !e.target.closest("a")) state.markers[+li.dataset.i]?.openPopup(); });
+$("list").addEventListener("click", e => {
+  const fix = e.target.closest("[data-fix]");
+  if(fix){ const r = state.shown[+fix.dataset.fix]; state.open = state.open === r.override_key ? null : r.override_key; render(); return; }
+  const set = e.target.closest("[data-set]");
+  if(set){ setOverride(state.shown[+set.dataset.i], set.dataset.set); return; }
+  const li = e.target.closest(".shop");
+  if(li && !e.target.closest("a")) state.markers[+li.dataset.i]?.openPopup();
+});
 $("minStores").addEventListener("input", e => { state.minStores = +e.target.value; render(); });
 $("minPrefs").addEventListener("input", e => { state.minPrefs = +e.target.value; render(); });
+$("minAny").addEventListener("input", e => { state.minAny = +e.target.value; render(); });
 for(const [id, key] of [["tHide","hide"], ["tLocal","local"]])
   $(id).addEventListener("click", e => { state[key] = !state[key]; e.currentTarget.setAttribute("aria-pressed", state[key]); render(); });
 setMode("station"); render();

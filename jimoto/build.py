@@ -166,25 +166,78 @@ def group_key(p: dict, wikidata_by_brand: dict[str, str]) -> tuple[str, str]:
     return "n:" + strip_branch(p["name"]), "name"
 
 
-def build_brands(pois: list[dict], has_prefs: bool, min_stores: int = 2, min_name_group: int = 3) -> list[dict]:
-    """ブランドごとに店舗数・都道府県数・分布範囲をまとめる。各 poi に brand_key を書き込む。"""
+def build_brands(pois: list[dict], has_prefs: bool, min_stores: int = 2, min_name_group: int = 3,
+                 merge_km: float = 100.0) -> list[dict]:
+    """ブランドごとに店舗数・都道府県数・分布範囲をまとめる。各 poi に brand_key を書き込む。
+
+    1. brand:wikidata / brand タグのある店を束ねる（同じブランド名のグループは1つにまとめる）
+    2. タグのない店は、支店名を除いた店名がブランドの別名と一致し、かつ近くに
+       そのブランドの店があれば（同じ都道府県、または merge_km 以内）そのブランドに加える
+       → 「日高屋」とだけ登録された店も日高屋として数える。遠くの同名の別の店は混ぜない
+    3. 残りの店は、支店名を除いた店名が同じものを束ねる
+    """
     wikidata_by_brand: dict[str, str] = {}
     for p in pois:
         if p["wikidata"] and p["brand"]:
             wikidata_by_brand.setdefault(squash(p["brand"]), p["wikidata"])
 
-    groups: dict[str, list[dict]] = defaultdict(list)
-    sources: dict[str, Counter] = defaultdict(Counter)
+    tagged: dict[str, list[dict]] = defaultdict(list)
+    untagged: list[dict] = []
     for p in pois:
         key, src = group_key(p, wikidata_by_brand)
-        groups[key].append(p)
-        sources[key][src] += 1
+        if src == "name":
+            untagged.append(p)
+        elif key not in ("b:", "wd:"):
+            tagged[key].append(p)
+
+    # 1. 同じブランド名の wikidata グループ（別の Q 番号が付いている場合など）をまとめる
+    by_name: dict[str, str] = {}
+    for key in sorted(tagged, key=lambda k: (not k.startswith("wd:"), -len(tagged[k]))):
+        names = Counter(squash(p["brand"]) for p in tagged[key] if p["brand"])
+        top = names.most_common(1)[0][0] if names else ""
+        if top and top in by_name and by_name[top] != key:
+            tagged[by_name[top]].extend(tagged.pop(key))
+        elif top:
+            by_name[top] = key
+
+    # 2. タグのない店を、別名と位置でブランドに合流させる
+    alias_owner: dict[str, str] = {}
+    for key in sorted(tagged, key=lambda k: -len(tagged[k])):
+        members = tagged[key]
+        names = {squash(p["brand"]) for p in members if p["brand"]}
+        names |= {squash(p["brand_en"]) for p in members if p.get("brand_en")}
+        names |= {strip_branch(p["name"]) for p in members}
+        for a in names:
+            if len(a) >= 2:
+                alias_owner.setdefault(a, key)
+    pref_sets = {k: {p.get("pref") for p in m if p.get("pref")} for k, m in tagged.items()}
+
+    def near(key: str, p: dict) -> bool:
+        if has_prefs and p.get("pref"):
+            return p["pref"] in pref_sets[key]
+        return any(haversine_km(p["lat"], p["lng"], q["lat"], q["lng"]) <= merge_km for q in tagged[key])
+
+    rest: dict[str, list[dict]] = defaultdict(list)
+    for p in untagged:
+        k = strip_branch(p["name"])
+        owner = alias_owner.get(k)
+        if owner and near(owner, p):
+            tagged[owner].append(p)
+        elif k:
+            rest["n:" + k].append(p)
+
+    # 3. まとめる
+    groups: list[tuple[str, list[dict], str]] = []
+    for key, members in tagged.items():
+        src = "wikidata" if key.startswith("wd:") else "brand"
+        groups.append((key, members, src))
+    for key, members in rest.items():
+        groups.append((key, members, "name"))
 
     brands: list[dict] = []
-    for key, members in groups.items():
-        source = sources[key].most_common(1)[0][0]
+    for key, members, source in groups:
         need = min_name_group if source == "name" else min_stores
-        if len(members) < need or key in ("n:", "b:"):
+        if len(members) < need:
             for p in members:
                 p["brand_key"] = None
             continue

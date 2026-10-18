@@ -17,13 +17,21 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from .build import haversine_km
 from .classify import BrandIndex, Rules, classify, is_excluded
 from .normalize import squash
+from .overrides import Overrides, override_key
 from .providers import GooglePlacesProvider, OSMLocalProvider
 
 WEB = Path(__file__).resolve().parent.parent / "web"
+
+
+class Report(BaseModel):
+    key: str
+    category: str | None = None  # chain / local / indie。None で自動の判定に戻す
+    name: str = ""
 
 
 def open_db(path: str) -> sqlite3.Connection | None:
@@ -39,6 +47,7 @@ def create_app(db_path: str | None = None, provider: str | None = None,
     provider = provider or os.environ.get("JIMOTO_PROVIDER", "osm")
     conn = open_db(db_path)
     index = BrandIndex.from_db(conn) if conn else BrandIndex([])
+    overrides = Overrides(Path(db_path).with_name("reports.json"))
 
     if provider == "google":
         key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
@@ -83,11 +92,12 @@ def create_app(db_path: str | None = None, provider: str | None = None,
         station_id: int | None = None,
         radius: int = Query(1000, ge=100, le=20000, description="検索半径（m）"),
         min_stores: int = 20, min_prefs: int = 4, min_spread_km: float = 150,
+        min_stores_any: int = Query(40, description="この店舗数以上なら範囲に関係なくチェーン"),
         exclude_local: bool = False,
         hide_excluded: bool = Query(False, description="除外した店を結果から取り除く"),
     ):
-        rules = Rules(min_stores=min_stores, min_prefs=min_prefs,
-                      min_spread_km=min_spread_km, exclude_local=exclude_local)
+        rules = Rules(min_stores=min_stores, min_prefs=min_prefs, min_spread_km=min_spread_km,
+                      min_stores_any=min_stores_any, exclude_local=exclude_local)
         center = None
         if lat is not None and lng is not None:
             center = {"lat": lat, "lng": lng, "label": "現在地"}
@@ -117,7 +127,9 @@ def create_app(db_path: str | None = None, provider: str | None = None,
         results, counts = [], {"indie": 0, "local": 0, "chain": 0}
         for p in places:
             brand = index.get(p.brand_key) if p.brand_key else index.match(p.name)
-            cat = classify(brand, rules)
+            okey = override_key(brand, p.name)
+            fixed = overrides.get(okey)
+            cat = fixed or classify(brand, rules)
             excluded = is_excluded(cat, rules)
             counts[cat] += 1
             if excluded and hide_excluded:
@@ -126,12 +138,22 @@ def create_app(db_path: str | None = None, provider: str | None = None,
             item.pop("brand_key")
             item.update({
                 "brand": brand.public() if brand else None, "category": cat, "excluded": excluded,
+                "override_key": okey, "override": fixed,
                 "distance_m": round(haversine_km(center["lat"], center["lng"], p.lat, p.lng) * 1000)
                 if center else None,
             })
             results.append(item)
         return {"center": center, "provider": source.name, "attribution": source.attribution,
                 "rules": asdict(rules), "counts": counts, "results": results}
+
+    @app.post("/api/report")
+    def report(r: Report):
+        """判定の修正を記録する。同じブランドの店すべてに効く。"""
+        try:
+            overrides.set(squash(r.key), r.category, r.name)
+        except ValueError:
+            raise HTTPException(400, "category は chain / local / indie のどれかです")
+        return {"ok": True, "key": squash(r.key), "category": r.category}
 
     @app.get("/")
     def index_page():
