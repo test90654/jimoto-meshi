@@ -47,7 +47,7 @@ Google Places など別のデータ源の店は、店名を正規化してブラ
 Python 3.10 以上が必要です。
 
 ```bash
-pip install -r requirements.txt
+pip install -r requirements-build.txt
 ```
 
 ### 1. データを用意する
@@ -89,6 +89,46 @@ uvicorn jimoto.server:app --reload
 ```
 
 http://localhost:8000 を開きます。現在地検索はブラウザの位置情報を使うため、`localhost` か HTTPS で開いてください。
+
+データベースを自分で作らずに、GitHub Actions が作ったものを使うこともできます（下の「Render で公開する」を参照）。
+
+```bash
+pip install -r requirements.txt
+python -m jimoto.fetch_data
+uvicorn jimoto.server:app
+```
+
+## Render で公開する
+
+パソコンを起動しておかなくても、スマホなどからいつでも使えるようにできます。
+
+```
+GitHub Actions（毎週月曜）─▶ 全国版 OSM からデータベースを作る ─▶ リリース data-latest に置く
+                                                                  │
+Render ─(デプロイのたび)─▶ jimoto.db を取得 ─▶ サーバーを起動 ◀────┘
+```
+
+### 1. データベースを用意する
+
+GitHub の **Actions** タブ →「データベースを作る」→ **Run workflow** で実行します（5〜10分）。終わるとリリース `data-latest` に `jimoto.db` が置かれます。以後は毎週月曜に自動で作り直します。`jimoto/build.py` などの判定の仕組みを変えたときも自動で作り直します。
+
+### 2. Render にサービスを作る
+
+1. https://render.com に GitHub アカウントでログインする
+2. **New** → **Blueprint** を選び、このリポジトリを選ぶ
+3. `render.yaml` の内容（無料プラン、公開用の設定）が表示されるので、そのまま作成する
+
+数分でデプロイが終わり、`https://jimoto-meshi-xxxx.onrender.com` のようなアドレスで使えるようになります。HTTPS なので、スマホでも現在地検索が使えます。
+
+### 3. データの更新を自動で反映する（任意）
+
+Render のサービスの **Settings** → **Deploy Hook** の URL をコピーし、GitHub のリポジトリの **Settings** → **Secrets and variables** → **Actions** に `RENDER_DEPLOY_HOOK` という名前で登録します。データベースを作り直すたびに Render が新しいデータで再起動します。
+
+### 公開版での注意
+
+- **無料プランは15分使わないと休止します。** 休止中に開くと、表示まで1分ほどかかります
+- **「判定を直す」は、公開版では各自のブラウザに保存されます**（`JIMOTO_PUBLIC=1`）。他の人の判定には影響しません。みんなに反映したい修正は `jimoto/overrides.json` に書いて push してください
+- 地図の画像は OpenStreetMap のタイルを使っています。[タイルの利用方針](https://operations.osmfoundation.org/policies/tiles/)では大量のアクセスが禁止されているので、多くの人に公開する場合は別の地図タイルの提供元に切り替えてください
 
 ## データ源の切り替え
 
@@ -138,6 +178,7 @@ Google を使う場合も、チェーン判定と駅名検索にはビルドし�
 ## テスト
 
 ```bash
+pip install -r requirements-build.txt
 pytest
 ```
 

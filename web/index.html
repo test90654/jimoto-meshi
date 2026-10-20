@@ -125,7 +125,24 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;
 const LABEL = {indie:"個人店", local:"地元チェーン", chain:"広域チェーン"};
 const COLOR = {indie:"--accent", local:"--local", chain:"--chain"};
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const state = {mode:"station", data:null, minStores:20, minPrefs:4, minAny:40, hide:true, local:false, minSpread:150, minNameGroup:3, open:null};
+const state = {mode:"station", data:null, minStores:20, minPrefs:4, minAny:40, hide:true, local:false, minSpread:150, minNameGroup:3, open:null,
+  reports:"server"};
+
+// 公開用のサーバーでは、判定の修正をこのブラウザに保存する
+const LS_KEY = "jimoto-overrides";
+function localOverrides(){ try{ return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); }catch{ return {}; } }
+function saveLocalOverride(key, category){
+  const o = localOverrides(); o[key] = category || "auto";
+  try{ localStorage.setItem(LS_KEY, JSON.stringify(o)); }catch{ throw new Error("このブラウザでは修正を保存できません"); }
+}
+function applyLocal(results){
+  const o = localOverrides();
+  results.forEach(x => {
+    if(x.serverOverride === undefined) x.serverOverride = x.override;
+    const v = o[x.override_key];
+    x.override = v === undefined ? x.serverOverride : (v === "auto" ? null : v);
+  });
+}
 
 // 地図
 const map = L.map("map").setView([35.68, 139.76], 13);
@@ -189,6 +206,7 @@ async function search(extra = {}){
       return;
     }
     $("choices").innerHTML = "";
+    if(state.reports === "browser") applyLocal(d.results);
     state.data = d; msg(d.center ? `${d.center.label} の周辺` : `「${q}」の検索結果`);
     render(true);
   }catch(e){ msg(e.message, true); }
@@ -199,12 +217,19 @@ function fixLabel(r){ return r.brand ? `「${r.brand.name}」の全店舗をど�
 
 async function setOverride(r, category){
   try{
-    const res = await fetch("/api/report", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({key: r.override_key, category: category || null, name: r.brand ? r.brand.name : r.name})});
-    if(!res.ok) throw new Error((await res.json()).detail || "保存できませんでした");
-    state.data.results.forEach(x => { if(x.override_key === r.override_key) x.override = category || null; });
+    const label = r.brand ? r.brand.name : r.name;
+    if(state.reports === "browser"){
+      saveLocalOverride(r.override_key, category);
+      applyLocal(state.data.results);
+    }else{
+      const res = await fetch("/api/report", {method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({key: r.override_key, category: category || null, name: label})});
+      if(!res.ok) throw new Error((await res.json()).detail || "保存できませんでした");
+      state.data.results.forEach(x => { if(x.override_key === r.override_key) x.override = category || null; });
+    }
     state.open = null;
-    msg(category ? `「${r.brand ? r.brand.name : r.name}」を${LABEL[category]}として記録しました` : "自動の判定に戻しました");
+    const where = state.reports === "browser" ? "このブラウザに" : "";
+    msg(category ? `「${label}」を${LABEL[category]}として${where}記録しました` : "自動の判定に戻しました");
     render();
   }catch(e){ msg(e.message, true); }
 }
@@ -265,6 +290,7 @@ $("minAny").addEventListener("input", e => { state.minAny = +e.target.value; ren
 for(const [id, key] of [["tHide","hide"], ["tLocal","local"]])
   $(id).addEventListener("click", e => { state[key] = !state[key]; e.currentTarget.setAttribute("aria-pressed", state[key]); render(); });
 setMode("station"); render();
+fetch("/api/health").then(r => r.json()).then(h => { state.reports = h.reports || "server"; }).catch(() => {});
 </script>
 </body>
 </html>

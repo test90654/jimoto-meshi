@@ -1,0 +1,17 @@
+# Render の Blueprint。Render の画面で New → Blueprint からこのリポジトリを選ぶと、この設定で作られる。
+services:
+  - type: web
+    name: jimoto-meshi
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt && python -m jimoto.fetch_data --force
+    startCommand: uvicorn jimoto.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.8"
+      - key: JIMOTO_PUBLIC
+        value: "1"
+      - key: JIMOTO_DATA_URL
+        value: https://github.com/test90654/jimoto-meshi/releases/download/data-latest/jimoto.db

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 import httpx
 
-from .build import haversine_km
+from .geo import haversine_km
 from .normalize import nfkc
 
 

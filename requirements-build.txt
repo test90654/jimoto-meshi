@@ -1,0 +1,5 @@
+# データベースを作る（python -m jimoto.build）・テストするのに必要なもの
+-r requirements.txt
+osmium>=4.0
+shapely>=2.0
+pytest>=8

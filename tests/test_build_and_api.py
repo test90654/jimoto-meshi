@@ -82,6 +82,27 @@ def test_report_overrides_category(db):
     assert c2.post("/api/report", json={"key": "x", "category": "foo"}).status_code == 400
 
 
+def test_public_mode_does_not_store_reports(db):
+    c = TestClient(create_app(str(db), "osm", public=True))
+    assert c.get("/api/health").json()["reports"] == "browser"
+    assert c.post("/api/report", json={"key": "鮨まつ乃", "category": "chain"}).status_code == 403
+    assert not db.with_name("reports.json").exists() or "鮨まつ乃" not in db.with_name("reports.json").read_text()
+
+
+def test_server_runs_without_build_packages():
+    """Render ではビルド用の osmium / shapely を入れないので、サーバーはそれなしで読み込めること。"""
+    import subprocess, sys
+    code = (
+        "import builtins; real = builtins.__import__\n"
+        "def guard(n, *a, **k):\n"
+        "    if n.split('.')[0] in ('osmium', 'shapely'): raise ImportError(n)\n"
+        "    return real(n, *a, **k)\n"
+        "builtins.__import__ = guard\n"
+        "import jimoto.server\n"
+    )
+    subprocess.run([sys.executable, "-c", code], check=True, cwd=Path(__file__).parent.parent)
+
+
 def test_errors(db):
     c = TestClient(create_app(str(db), "osm"))
     assert c.get("/api/search").status_code == 400

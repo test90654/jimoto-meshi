@@ -20,9 +20,8 @@ import time
 from collections import Counter, defaultdict
 from pathlib import Path
 
-import osmium
-
 from .genres import FOOD_AMENITIES, genre_label
+from .geo import haversine_km
 from .normalize import drop_branch, nfkc, squash, strip_branch
 
 SCHEMA = """
@@ -59,6 +58,8 @@ def read_osm(path: str) -> tuple[list[dict], list[dict]]:
     1回目：タグ付きのノードと way を読み、必要な way の構成ノード ID を集める
     2回目：その ID のノードだけ位置を読む
     """
+    import osmium  # ビルドのときだけ必要（サーバーでは読み込まない）
+
     found: list[tuple[str, dict, object]] = []  # (oid, tags, 位置 or 構成ノードID列)
     need: set[int] = set()
     fp = osmium.FileProcessor(path, osmium.osm.NODE | osmium.osm.WAY).with_filter(
@@ -146,14 +147,6 @@ class PrefectureLocator:
 
 
 # ---------------------------------------------------------------- 集計
-
-def haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
-    r = 6371.0
-    p1, p2 = math.radians(lat1), math.radians(lat2)
-    dp, dl = p2 - p1, math.radians(lng2 - lng1)
-    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
-    return 2 * r * math.asin(math.sqrt(a))
-
 
 def group_key(p: dict, wikidata_by_brand: dict[str, str]) -> tuple[str, str]:
     """店をブランドに束ねるキーと、その根拠を返す。"""

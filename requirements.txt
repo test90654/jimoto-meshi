@@ -1,6 +1,4 @@
-osmium>=4.0
-shapely>=2.0
+# サーバーを動かすのに必要なもの（Render ではこれだけ入れる）
 fastapi>=0.110
 uvicorn>=0.29
 httpx>=0.27
-pytest>=8

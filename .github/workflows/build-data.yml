@@ -1,0 +1,66 @@
+# 全国版の OSM データから検索用データベースを作り、リリース data-latest に置く。
+# Render はデプロイのたびにここから jimoto.db を取ってくる。
+name: データベースを作る
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 18 * * 0"  # 毎週月曜 3:00（日本時間）
+  push:
+    branches: [main]
+    paths:
+      - "jimoto/build.py"
+      - "jimoto/normalize.py"
+      - "jimoto/genres.py"
+      - ".github/workflows/build-data.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-data
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      RENDER_DEPLOY_HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements-build.txt
+
+      - name: 依存パッケージを入れる
+        run: pip install -r requirements-build.txt
+
+      - name: テスト
+        run: pytest -q
+
+      - name: OSM データと都道府県の境界を取得
+        run: |
+          mkdir -p data
+          curl -fL --retry 3 -o data/japan-latest.osm.pbf https://download.geofabrik.de/asia/japan-latest.osm.pbf
+          curl -fL --retry 3 -o data/japan.geojson https://raw.githubusercontent.com/dataofjapan/land/master/japan.geojson
+          ls -lh data
+
+      - name: データベースを作る
+        run: python -m jimoto.build data/japan-latest.osm.pbf --prefectures data/japan.geojson --out data/jimoto.db
+
+      - name: リリース data-latest に置く
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view data-latest >/dev/null 2>&1 || \
+            gh release create data-latest --title "検索用データ（最新）" --latest=false \
+              --notes "GitHub Actions が毎週作り直す検索用データベースです。Render はデプロイ時にここから取得します。"
+          gh release upload data-latest data/jimoto.db data/brands.json --clobber
+
+      - name: Render に再デプロイを依頼（設定している場合）
+        if: env.RENDER_DEPLOY_HOOK != ''
+        run: curl -fsS -X POST "$RENDER_DEPLOY_HOOK" > /dev/null

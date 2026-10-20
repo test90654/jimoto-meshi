@@ -7,6 +7,7 @@
     JIMOTO_DB            build で作った SQLite（既定 data/jimoto.db）
     JIMOTO_PROVIDER      osm（既定）または google
     GOOGLE_MAPS_API_KEY  google を使う場合の API キー
+    JIMOTO_PUBLIC        1 にすると公開用。判定の修正をサーバーに保存せず、各自のブラウザに保存する
 """
 from __future__ import annotations
 
@@ -19,7 +20,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from .build import haversine_km
+from .geo import haversine_km
 from .classify import BrandIndex, Rules, classify, is_excluded
 from .normalize import squash
 from .overrides import Overrides, override_key
@@ -42,12 +43,15 @@ def open_db(path: str) -> sqlite3.Connection | None:
 
 
 def create_app(db_path: str | None = None, provider: str | None = None,
-               google_client=None) -> FastAPI:
+               google_client=None, public: bool | None = None) -> FastAPI:
     db_path = db_path or os.environ.get("JIMOTO_DB", "data/jimoto.db")
     provider = provider or os.environ.get("JIMOTO_PROVIDER", "osm")
     conn = open_db(db_path)
     index = BrandIndex.from_db(conn) if conn else BrandIndex([])
-    overrides = Overrides(Path(db_path).with_name("reports.json"))
+    if public is None:
+        public = os.environ.get("JIMOTO_PUBLIC", "").lower() in ("1", "true", "yes")
+    # 公開用では reports.json を読み書きしない（共有の修正 overrides.json だけ使う）
+    overrides = Overrides(None if public else Path(db_path).with_name("reports.json"))
 
     if provider == "google":
         key = os.environ.get("GOOGLE_MAPS_API_KEY", "")
@@ -78,7 +82,8 @@ def create_app(db_path: str | None = None, provider: str | None = None,
     @app.get("/api/health")
     def health():
         meta = dict(conn.execute("SELECT k, v FROM meta").fetchall()) if conn else {}
-        return {"ok": True, "provider": source.name, "brands": len(index), "data": meta}
+        return {"ok": True, "provider": source.name, "brands": len(index), "data": meta,
+                "reports": "browser" if public else "server"}
 
     @app.get("/api/stations")
     def stations(q: str = Query(..., min_length=1)):
@@ -149,6 +154,8 @@ def create_app(db_path: str | None = None, provider: str | None = None,
     @app.post("/api/report")
     def report(r: Report):
         """判定の修正を記録する。同じブランドの店すべてに効く。"""
+        if public:
+            raise HTTPException(403, "公開用のサーバーでは、判定の修正は各自のブラウザに保存します")
         try:
             overrides.set(squash(r.key), r.category, r.name)
         except ValueError:
