@@ -25,7 +25,9 @@ def test_build_brands(db):
     sb = brands["スターバックス"]
     assert sb["stores"] == 4 and sb["prefs"] == 2  # wikidata のない1店も束ねられている
     sawa = brands["炭焼きレストランさわやか"]
-    assert sawa["stores"] == 4 and sawa["prefs"] == 1  # 県内のタグなし1店は合流、愛知県の同名店は合流しない
+    # 県内のタグなし店（「さわやか 長田店」、英語名の「Sawayaka」、空白なしの「さわやか静岡インター店」）は合流。
+    # 遠い愛知県の短い同名店は合流しない
+    assert sawa["stores"] == 6 and sawa["prefs"] == 1
     assert brands["居酒屋 花"]["source"] == "name"
     assert "鮨 まつ乃" not in brands
 

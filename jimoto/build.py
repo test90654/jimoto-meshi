@@ -22,7 +22,7 @@ from pathlib import Path
 
 from .genres import FOOD_AMENITIES, genre_label
 from .geo import haversine_km
-from .normalize import drop_branch, nfkc, squash, strip_branch
+from .normalize import BRANCH_TAIL, drop_branch, nfkc, squash, strip_branch
 
 SCHEMA = """
 CREATE TABLE pois (
@@ -49,6 +49,9 @@ def _is_station(tags: dict) -> bool:
     if tags.get("railway") == "station":
         return True
     return tags.get("public_transport") == "station" and tags.get("train") == "yes"
+
+
+ALT_NAME_TAGS = ("name:ja", "name:en", "brand:en", "brand:ja", "official_name", "alt_name")
 
 
 def read_osm(path: str) -> tuple[list[dict], list[dict]]:
@@ -104,6 +107,8 @@ def read_osm(path: str) -> tuple[list[dict], list[dict]]:
                 "amenity": tags.get("amenity"), "cuisine": tags.get("cuisine") or "",
                 "brand": tags.get("brand:ja") or tags.get("brand"),
                 "brand_en": tags.get("brand"), "wikidata": tags.get("brand:wikidata"),
+                # 別の表記（「Bronco Billy」と「ブロンコビリー」など）。名寄せの手がかりに使う
+                "alt": [nfkc(tags[k]) for k in ALT_NAME_TAGS if tags.get(k)],
             })
         else:
             stations.append({"name": nfkc(name), "lat": lat, "lng": lng, "operator": tags.get("operator") or ""})
@@ -206,6 +211,7 @@ def build_brands(pois: list[dict], has_prefs: bool, min_stores: int = 2, min_nam
         names = {squash(p["brand"]) for p in members if p["brand"]}
         names |= {squash(p["brand_en"]) for p in members if p.get("brand_en")}
         names |= {strip_branch(p["name"]) for p in members}
+        names |= {strip_branch(a) for p in members for a in p.get("alt", [])}
         for a in names:
             if len(a) >= 2:
                 alias_owner.setdefault(a, key)
@@ -231,10 +237,24 @@ def build_brands(pois: list[dict], has_prefs: bool, min_stores: int = 2, min_nam
         return any(haversine_km(p["lat"], p["lng"], q["lat"], q["lng"]) <= merge_km for q in tagged[key])
 
     rest: dict[str, list[dict]] = defaultdict(list)
+    def find_owner(p: dict) -> tuple[str | None, str]:
+        """店名・別表記から、合流先のブランドを探す。"""
+        keys = [strip_branch(p["name"])] + [strip_branch(a) for a in p.get("alt", [])]
+        for k in keys:
+            owner = alias_owner.get(k)
+            if owner and near(owner, p, k):
+                return owner, k
+        # 「ブロンコビリー沼津香貫店」のように支店名との間に空白がない店名
+        s = squash(p["name"])
+        for n in range(len(s) - 1, 1, -1):
+            owner = alias_owner.get(s[:n])
+            if owner and BRANCH_TAIL.match(s[n:]) and near(owner, p, s[:n]):
+                return owner, s[:n]
+        return None, keys[0]
+
     for p in untagged:
-        k = strip_branch(p["name"])
-        owner = alias_owner.get(k)
-        if owner and near(owner, p, k):
+        owner, k = find_owner(p)
+        if owner:
             tagged[owner].append(p)
         elif k:
             rest["n:" + k].append(p)

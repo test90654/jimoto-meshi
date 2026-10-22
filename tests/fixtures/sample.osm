@@ -13,6 +13,9 @@
   <!-- タグなしの「さわやか」：近く（静岡県内）ならさわやかに合流。遠い愛知県の短い同名店は別の店とみなして合流しない -->
   <node id="13" lat="34.9800" lon="138.4000" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="さわやか 長田店"/></node>
   <node id="14" lat="35.9000" lon="136.6000" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="さわやか"/></node>
+  <!-- 英語名だけの店（name:ja で合流）と、支店名との間に空白がない店 -->
+  <node id="15" lat="34.7200" lon="137.7400" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="Sawayaka"/><tag k="name:ja" v="さわやか"/></node>
+  <node id="16" lat="34.9900" lon="138.4100" version="1"><tag k="amenity" v="restaurant"/><tag k="name" v="さわやか静岡インター店"/></node>
   <!-- brand タグなし、同じ店名が3店（店名だけで束ねる） -->
   <node id="20" lat="34.9700" lon="138.3900" version="1"><tag k="amenity" v="pub"/><tag k="name" v="居酒屋 花 静岡店"/></node>
   <node id="21" lat="34.7050" lon="137.7360" version="1"><tag k="amenity" v="pub"/><tag k="name" v="居酒屋 花 浜松店"/></node>
