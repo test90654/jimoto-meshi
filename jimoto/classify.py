@@ -6,6 +6,12 @@
 
 両方がしきい値以上なら「広域チェーン」として除外し、そうでなければ「地元チェーン」として残す。
 ただし店舗数がとても多いブランド（min_stores_any 以上）は、首都圏などに集中していても広域チェーンとする。
+OSM のブランド情報（wikidata / brand タグ）があるブランドは、店舗数が少なめでも多くの都道府県に
+広がっていれば広域チェーンとする（OSM への登録が追いついていない新しいチェーン向け）。
+
+店名が同じというだけで束ねたグループ（source="name"）は、偶然の同名の個人店
+（「さくら」「食堂」など）が混ざるので自動では除外しない。県内に集中していれば地元チェーン、
+散らばっていれば個人店とみなす。実在のチェーンは overrides.json に登録する。
 利用者が直した判定（overrides）は、これらの規則より優先する。
 """
 from __future__ import annotations
@@ -44,19 +50,25 @@ class Rules:
     min_spread_km: float = 150.0  # 都道府県データがない場合に使う
     min_stores_any: int = 40  # この店舗数以上なら、広がりに関係なく広域チェーン
     exclude_local: bool = False  # 地元チェーンも除外するか
-    min_name_group: int = 3  # 店名だけで束ねたグループは、この店舗数以上でないとチェーン扱いしない
+    min_name_group: int = 3  # 店名だけで束ねたグループは、この店舗数以上でないと地元チェーン扱いしない
+    wide_min_stores: int = 10  # ブランド情報があり、この店舗数以上で…
+    wide_min_prefs: int = 8  # …この都道府県数以上に広がっていれば広域チェーン
 
 
 def classify(brand: Brand | None, rules: Rules) -> Category:
     if brand is None:
         return "indie"
-    if brand.source == "name" and brand.stores < rules.min_name_group:
-        return "indie"
     if brand.prefs is not None:
         wide = brand.prefs >= rules.min_prefs
     else:
         wide = brand.spread_km >= rules.min_spread_km
+    if brand.source == "name":
+        if brand.stores < rules.min_name_group:
+            return "indie"
+        return "indie" if wide else "local"
     if brand.stores >= rules.min_stores_any:
+        return "chain"
+    if brand.prefs is not None and brand.stores >= rules.wide_min_stores and brand.prefs >= rules.wide_min_prefs:
         return "chain"
     return "chain" if brand.stores >= rules.min_stores and wide else "local"
 

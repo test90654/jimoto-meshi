@@ -1,4 +1,422 @@
 {
- "日高屋": {"category": "chain", "name": "日高屋"},
- "小諸そば": {"category": "chain", "name": "小諸そば"}
+ "日高屋": {
+  "category": "chain",
+  "name": "日高屋"
+ },
+ "小諸そば": {
+  "category": "chain",
+  "name": "小諸そば"
+ },
+ "感動の肉と米": {
+  "category": "chain",
+  "name": "感動の肉と米"
+ },
+ "ブロンコビリー": {
+  "category": "chain",
+  "name": "ブロンコビリー"
+ },
+ "千年の宴": {
+  "category": "chain",
+  "name": "千年の宴"
+ },
+ "がってん寿司": {
+  "category": "chain",
+  "name": "がってん寿司"
+ },
+ "牛繁": {
+  "category": "chain",
+  "name": "牛繁"
+ },
+ "にぎり長次郎": {
+  "category": "chain",
+  "name": "にぎり長次郎"
+ },
+ "街かど屋": {
+  "category": "chain",
+  "name": "街かど屋"
+ },
+ "丼丸": {
+  "category": "chain",
+  "name": "丼丸"
+ },
+ "さかなや道場": {
+  "category": "chain",
+  "name": "さかなや道場"
+ },
+ "伝説のすた丼屋": {
+  "category": "chain",
+  "name": "伝説のすた丼屋"
+ },
+ "扇屋": {
+  "category": "chain",
+  "name": "扇屋"
+ },
+ "備長扇屋": {
+  "category": "chain",
+  "name": "備長扇屋"
+ },
+ "ゆず庵": {
+  "category": "chain",
+  "name": "ゆず庵"
+ },
+ "梅の花": {
+  "category": "chain",
+  "name": "梅の花"
+ },
+ "銀のさら": {
+  "category": "chain",
+  "name": "銀のさら"
+ },
+ "情熱ホルモン": {
+  "category": "chain",
+  "name": "情熱ホルモン"
+ },
+ "一軒め酒場": {
+  "category": "chain",
+  "name": "一軒め酒場"
+ },
+ "杉玉": {
+  "category": "chain",
+  "name": "杉玉"
+ },
+ "かつさと": {
+  "category": "chain",
+  "name": "かつさと"
+ },
+ "やまなか家": {
+  "category": "chain",
+  "name": "やまなか家"
+ },
+ "赤から": {
+  "category": "chain",
+  "name": "赤から"
+ },
+ "韓丼": {
+  "category": "chain",
+  "name": "韓丼"
+ },
+ "日本海庄や": {
+  "category": "chain",
+  "name": "日本海庄や"
+ },
+ "珍来": {
+  "category": "chain",
+  "name": "珍来"
+ },
+ "らあめん花月": {
+  "category": "chain",
+  "name": "らあめん花月"
+ },
+ "上等カレー": {
+  "category": "chain",
+  "name": "上等カレー"
+ },
+ "吉鳥": {
+  "category": "chain",
+  "name": "吉鳥"
+ },
+ "焼とり吉鳥": {
+  "category": "chain",
+  "name": "焼とり吉鳥"
+ },
+ "いっちょう": {
+  "category": "chain",
+  "name": "いっちょう"
+ },
+ "叙々苑": {
+  "category": "chain",
+  "name": "叙々苑"
+ },
+ "浜焼太郎": {
+  "category": "chain",
+  "name": "浜焼太郎"
+ },
+ "田所商店": {
+  "category": "chain",
+  "name": "田所商店"
+ },
+ "村さ来": {
+  "category": "chain",
+  "name": "村さ来"
+ },
+ "とりでん": {
+  "category": "chain",
+  "name": "とりでん"
+ },
+ "東京油組総本店": {
+  "category": "chain",
+  "name": "東京油組総本店"
+ },
+ "三田製麺所": {
+  "category": "chain",
+  "name": "三田製麺所"
+ },
+ "スエヒロ館": {
+  "category": "chain",
+  "name": "スエヒロ館"
+ },
+ "とらふぐ亭": {
+  "category": "chain",
+  "name": "とらふぐ亭"
+ },
+ "塚田農場": {
+  "category": "chain",
+  "name": "塚田農場"
+ },
+ "鳥メロ": {
+  "category": "chain",
+  "name": "鳥メロ"
+ },
+ "三代目鳥メロ": {
+  "category": "chain",
+  "name": "三代目鳥メロ"
+ },
+ "ぢどり亭": {
+  "category": "chain",
+  "name": "ぢどり亭"
+ },
+ "魁力屋": {
+  "category": "chain",
+  "name": "魁力屋"
+ },
+ "博多劇場": {
+  "category": "chain",
+  "name": "博多劇場"
+ },
+ "伝丸": {
+  "category": "chain",
+  "name": "伝丸"
+ },
+ "テング酒場": {
+  "category": "chain",
+  "name": "テング酒場"
+ },
+ "魚がし日本一": {
+  "category": "chain",
+  "name": "魚がし日本一"
+ },
+ "海鮮三崎港": {
+  "category": "chain",
+  "name": "海鮮三崎港"
+ },
+ "ねぎし": {
+  "category": "chain",
+  "name": "ねぎし"
+ },
+ "とり鉄": {
+  "category": "chain",
+  "name": "とり鉄"
+ },
+ "香の川製麺": {
+  "category": "chain",
+  "name": "香の川製麺"
+ },
+ "鶏笑": {
+  "category": "chain",
+  "name": "鶏笑"
+ },
+ "玄品ふぐ": {
+  "category": "chain",
+  "name": "玄品ふぐ"
+ },
+ "肉匠坂井": {
+  "category": "chain",
+  "name": "肉匠坂井"
+ },
+ "寧々家": {
+  "category": "chain",
+  "name": "寧々家"
+ },
+ "珈琲屋らんぷ": {
+  "category": "chain",
+  "name": "珈琲屋らんぷ"
+ },
+ "やっぱりステーキ": {
+  "category": "chain",
+  "name": "やっぱりステーキ"
+ },
+ "どうとんぼり神座": {
+  "category": "chain",
+  "name": "どうとんぼり神座"
+ },
+ "金の蔵": {
+  "category": "chain",
+  "name": "金の蔵"
+ },
+ "ちゃんぽん亭": {
+  "category": "chain",
+  "name": "ちゃんぽん亭"
+ },
+ "筑前屋": {
+  "category": "chain",
+  "name": "筑前屋"
+ },
+ "熟成焼肉いちばん": {
+  "category": "chain",
+  "name": "熟成焼肉いちばん"
+ },
+ "こがね製麺所": {
+  "category": "chain",
+  "name": "こがね製麺所"
+ },
+ "がブリチキン": {
+  "category": "chain",
+  "name": "がブリチキン"
+ },
+ "鳥良商店": {
+  "category": "chain",
+  "name": "鳥良商店"
+ },
+ "わたみん家": {
+  "category": "chain",
+  "name": "わたみん家"
+ },
+ "温野菜": {
+  "category": "chain",
+  "name": "温野菜"
+ },
+ "大庄水産": {
+  "category": "chain",
+  "name": "大庄水産"
+ },
+ "得得": {
+  "category": "chain",
+  "name": "得得"
+ },
+ "うまい鮨勘": {
+  "category": "chain",
+  "name": "うまい鮨勘"
+ },
+ "お酒の美術館": {
+  "category": "chain",
+  "name": "お酒の美術館"
+ },
+ "だんまや水産": {
+  "category": "chain",
+  "name": "だんまや水産"
+ },
+ "ラーメン豚山": {
+  "category": "chain",
+  "name": "ラーメン豚山"
+ },
+ "やるき茶屋": {
+  "category": "chain",
+  "name": "やるき茶屋"
+ },
+ "ずんどう屋": {
+  "category": "chain",
+  "name": "ずんどう屋"
+ },
+ "Holly's Cafe": {
+  "category": "chain",
+  "name": "Holly's Cafe"
+ },
+ "焼肉トラジ": {
+  "category": "chain",
+  "name": "焼肉トラジ"
+ },
+ "トラジ": {
+  "category": "chain",
+  "name": "トラジ"
+ },
+ "元祖ニュータンタンメン本舗": {
+  "category": "chain",
+  "name": "元祖ニュータンタンメン本舗"
+ },
+ "元祖油堂": {
+  "category": "chain",
+  "name": "元祖油堂"
+ },
+ "銀座ライオン": {
+  "category": "chain",
+  "name": "銀座ライオン"
+ },
+ "ニパチ": {
+  "category": "chain",
+  "name": "ニパチ"
+ },
+ "陳麻家": {
+  "category": "chain",
+  "name": "陳麻家"
+ },
+ "HUB": {
+  "category": "chain",
+  "name": "HUB"
+ },
+ "焼肉ここから": {
+  "category": "chain",
+  "name": "焼肉ここから"
+ },
+ "21時にアイス": {
+  "category": "chain",
+  "name": "21時にアイス"
+ },
+ "さかい珈琲": {
+  "category": "chain",
+  "name": "さかい珈琲"
+ },
+ "ときわ亭": {
+  "category": "chain",
+  "name": "ときわ亭"
+ },
+ "ストロベリーコーンズ": {
+  "category": "chain",
+  "name": "ストロベリーコーンズ"
+ },
+ "Cafeレストラン ガスト": {
+  "category": "chain",
+  "name": "Cafeレストラン ガスト"
+ },
+ "ぎょうざの満州": {
+  "category": "chain",
+  "name": "ぎょうざの満州"
+ },
+ "まるまつ": {
+  "category": "chain",
+  "name": "まるまつ"
+ },
+ "和風レストラン まるまつ": {
+  "category": "chain",
+  "name": "和風レストラン まるまつ"
+ },
+ "スガキヤ": {
+  "category": "local",
+  "name": "スガキヤ"
+ },
+ "福しん": {
+  "category": "local",
+  "name": "福しん"
+ },
+ "テンホウ": {
+  "category": "local",
+  "name": "テンホウ"
+ },
+ "味ん味ん": {
+  "category": "local",
+  "name": "味ん味ん"
+ },
+ "藤一番": {
+  "category": "local",
+  "name": "藤一番"
+ },
+ "ラッキーピエロ": {
+  "category": "local",
+  "name": "ラッキーピエロ"
+ },
+ "三宝亭": {
+  "category": "local",
+  "name": "三宝亭"
+ },
+ "横濱家": {
+  "category": "local",
+  "name": "横濱家"
+ },
+ "河童ラーメン本舗": {
+  "category": "local",
+  "name": "河童ラーメン本舗"
+ },
+ "牛たん炭焼 利久": {
+  "category": "local",
+  "name": "牛たん炭焼 利久"
+ }
 }

@@ -125,7 +125,7 @@ const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;
 const LABEL = {indie:"個人店", local:"地元チェーン", chain:"広域チェーン"};
 const COLOR = {indie:"--accent", local:"--local", chain:"--chain"};
 const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const state = {mode:"station", data:null, minStores:20, minPrefs:4, minAny:40, hide:true, local:false, minSpread:150, minNameGroup:3, open:null,
+const state = {mode:"station", data:null, minStores:20, minPrefs:4, minAny:40, hide:true, local:false, minSpread:150, minNameGroup:3, wideMinStores:10, wideMinPrefs:8, open:null,
   reports:"server"};
 
 // 公開用のサーバーでは、判定の修正をこのブラウザに保存する
@@ -155,9 +155,11 @@ function classify(r){
   if(r.override) return r.override;
   const b = r.brand;
   if(!b) return "indie";
-  if(b.source==="name" && b.stores < state.minNameGroup) return "indie";
   const wide = b.prefs != null ? b.prefs >= state.minPrefs : b.spread_km >= state.minSpread;
+  // 店名が同じだけのグループは偶然の同名の個人店が混ざるので、自動では除外しない
+  if(b.source === "name") return b.stores < state.minNameGroup || wide ? "indie" : "local";
   if(b.stores >= state.minAny) return "chain";
+  if(b.prefs != null && b.stores >= state.wideMinStores && b.prefs >= state.wideMinPrefs) return "chain";
   return b.stores >= state.minStores && wide ? "chain" : "local";
 }
 const isOut = c => c==="chain" || (state.local && c==="local");

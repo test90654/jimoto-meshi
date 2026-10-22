@@ -40,9 +40,22 @@ def test_spread_fallback_without_prefectures():
 
 
 def test_many_stores_in_small_area_is_chain():
-    komoro = Brand("n:小諸そば", "小諸そば", 43, 3, 38, "name")
+    komoro = Brand("b:小諸そば", "小諸そば", 43, 3, 38, "brand")
     assert classify(komoro, Rules()) == "chain"
     assert classify(komoro, Rules(min_stores_any=100)) == "local"
+
+
+def test_name_only_groups_are_never_excluded_automatically():
+    # 偶然の同名の個人店が全国に散らばっている
+    assert classify(Brand("n:さくら", "さくら", 68, 24, 1757, "name"), Rules()) == "indie"
+    # 県内に集中していれば地元チェーン
+    assert classify(Brand("n:五味八珍", "五味八珍", 31, 2, 300, "name"), Rules()) == "local"
+
+
+def test_small_but_widely_spread_tagged_brand_is_chain():
+    nikutokome = Brand("wd:Q110567861", "感動の肉と米", 18, 9, 600, "wikidata")
+    assert classify(nikutokome, Rules()) == "chain"
+    assert classify(Brand("wd:x", "X", 9, 9, 600, "wikidata"), Rules()) == "local"
 
 
 def test_name_group_needs_enough_stores():
