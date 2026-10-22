@@ -7,6 +7,7 @@
     JIMOTO_DB            build で作った SQLite（既定 data/jimoto.db）
     JIMOTO_PROVIDER      osm（既定）または google
     GOOGLE_MAPS_API_KEY  google を使う場合の API キー
+    HOTPEPPER_API_KEY    設定するとホットペッパーグルメの店も合わせて表示する
     JIMOTO_PUBLIC        1 にすると公開用。判定の修正をサーバーに保存せず、各自のブラウザに保存する
 """
 from __future__ import annotations
@@ -24,7 +25,7 @@ from .geo import haversine_km
 from .classify import BrandIndex, Rules, classify, is_excluded
 from .normalize import squash
 from .overrides import Overrides, override_key
-from .providers import GooglePlacesProvider, OSMLocalProvider
+from .providers import CombinedProvider, GooglePlacesProvider, HotpepperProvider, OSMLocalProvider
 
 WEB = Path(__file__).resolve().parent.parent / "web"
 
@@ -43,7 +44,8 @@ def open_db(path: str) -> sqlite3.Connection | None:
 
 
 def create_app(db_path: str | None = None, provider: str | None = None,
-               google_client=None, public: bool | None = None) -> FastAPI:
+               google_client=None, public: bool | None = None,
+               hotpepper_key: str | None = None, hotpepper_client=None) -> FastAPI:
     db_path = db_path or os.environ.get("JIMOTO_DB", "data/jimoto.db")
     provider = provider or os.environ.get("JIMOTO_PROVIDER", "osm")
     conn = open_db(db_path)
@@ -62,6 +64,13 @@ def create_app(db_path: str | None = None, provider: str | None = None,
         if conn is None:
             raise RuntimeError(f"{db_path} がありません。先に python -m jimoto.build を実行してください")
         source = OSMLocalProvider(conn)
+        hp_key = hotpepper_key if hotpepper_key is not None else os.environ.get("HOTPEPPER_API_KEY", "")
+        if hp_key:
+            source = CombinedProvider([source, HotpepperProvider(hp_key, client=hotpepper_client)])
+
+    def credits() -> list[dict]:
+        provs = getattr(source, "providers", [source])
+        return [{"name": p.name, "text": p.attribution, "url": getattr(p, "attribution_url", "")} for p in provs]
 
     app = FastAPI(title="ジモト飯 API")
 
@@ -82,7 +91,7 @@ def create_app(db_path: str | None = None, provider: str | None = None,
     @app.get("/api/health")
     def health():
         meta = dict(conn.execute("SELECT k, v FROM meta").fetchall()) if conn else {}
-        return {"ok": True, "provider": source.name, "brands": len(index), "data": meta,
+        return {"ok": True, "provider": source.name, "credits": credits(), "brands": len(index), "data": meta,
                 "reports": "browser" if public else "server"}
 
     @app.get("/api/stations")
@@ -128,7 +137,12 @@ def create_app(db_path: str | None = None, provider: str | None = None,
         if center is None and not q:
             raise HTTPException(400, "現在地・駅名・キーワードのどれかを指定してください")
 
-        places = await source.search(q, center and center["lat"], center and center["lng"], radius)
+        args = (q, center and center["lat"], center and center["lng"], radius)
+        warnings: list[str] = []
+        if hasattr(source, "search_detailed"):
+            places, warnings = await source.search_detailed(*args)
+        else:
+            places = await source.search(*args)
         results, counts = [], {"indie": 0, "local": 0, "chain": 0}
         for p in places:
             brand = index.get(p.brand_key) if p.brand_key else index.match(p.name)
@@ -149,6 +163,7 @@ def create_app(db_path: str | None = None, provider: str | None = None,
             })
             results.append(item)
         return {"center": center, "provider": source.name, "attribution": source.attribution,
+                "credits": credits(), "warnings": warnings,
                 "rules": asdict(rules), "counts": counts, "results": results}
 
     @app.post("/api/report")

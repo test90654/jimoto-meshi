@@ -209,7 +209,10 @@ async function search(extra = {}){
     }
     $("choices").innerHTML = "";
     if(state.reports === "browser") applyLocal(d.results);
-    state.data = d; msg(d.center ? `${d.center.label} の周辺` : `「${q}」の検索結果`);
+    state.data = d;
+    const head = d.center ? `${d.center.label} の周辺` : `「${q}」の検索結果`;
+    if(d.warnings && d.warnings.length) msg(`${head}（${d.warnings.join("、")}。ほかのデータ源の結果だけ表示しています）`, true);
+    else msg(head);
     render(true);
   }catch(e){ msg(e.message, true); }
   finally{ $("go").disabled = false; }
@@ -249,8 +252,10 @@ function render(fit){
     <span>個人店 <b>${cnt.indie}</b></span><span>地元チェーン <b>${cnt.local}</b></span><span>広域チェーン <b>${cnt.chain}</b></span>`;
   $("list").innerHTML = shown.length ? shown.map((r, i) => {
     const b = r.brand;
+    const ex = r.extra || {};
     const bits = [r.genre, r.distance_m != null ? `約${r.distance_m}m` : r.address,
-      r.rating ? `★${r.rating}` : "", b ? `${b.name}：${b.stores.toLocaleString()}店／${b.prefs ?? "?"}都道府県` : ""].filter(Boolean);
+      ex.budget ? `予算 ${ex.budget}` : "", r.rating ? `★${r.rating}` : "",
+      b ? `${b.name}：${b.stores.toLocaleString()}店／${b.prefs ?? "?"}都道府県` : ""].filter(Boolean);
     return `<li class="shop${isOut(r.c) ? " out" : ""}" data-i="${i}">
       <span class="nm"><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></span>
       <span class="badge b-${r.c}">${LABEL[r.c]}${isOut(r.c) ? "（除外）" : ""}</span>
@@ -261,7 +266,9 @@ function render(fit){
         ${r.override ? `<button class="chip" type="button" data-set="" data-i="${i}">自動の判定に戻す</button>` : ""}
       </span></li>`;
   }).join("") : `<li class="empty">条件に合う店がありません。「除外した店を隠す」をオフにすると除外された店も見られます。</li>`;
-  $("attr").textContent = d.provider==="google" ? "店舗情報：Google" : "店舗情報：© OpenStreetMap contributors";
+  // データ源の表示（ホットペッパーは利用規約で表示が必要）
+  $("attr").innerHTML = "店舗情報：" + (d.credits || [{text: d.attribution}]).map(c =>
+    c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.text)}</a>` : esc(c.text)).join(" ／ ");
 
   layer.clearLayers();
   const pts = [];

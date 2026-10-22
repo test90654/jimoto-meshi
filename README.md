@@ -130,6 +130,17 @@ Render のサービスの **Settings** → **Deploy Hook** の URL をコピー�
 - **「判定を直す」は、公開版では各自のブラウザに保存されます**（`JIMOTO_PUBLIC=1`）。他の人の判定には影響しません。みんなに反映したい修正は `jimoto/overrides.json` に書いて push してください
 - 地図の画像は OpenStreetMap のタイルを使っています。[タイルの利用方針](https://operations.osmfoundation.org/policies/tiles/)では大量のアクセスが禁止されているので、多くの人に公開する場合は別の地図タイルの提供元に切り替えてください
 
+## ホットペッパーの店も表示する
+
+OSM の飲食店は全国で約19万件で、Google マップよりかなり少なめです。ホットペッパーグルメ Webサービス（無料）の API キーを設定すると、ホットペッパーの店も合わせて表示します。同じ店は1件にまとめ、チェーンの判定は同じブランド辞書で行います。
+
+1. https://webservice.recruit.co.jp/register/ でメールアドレスを登録し、API キーを受け取る
+2. 環境変数 `HOTPEPPER_API_KEY` に設定する
+   - 自分のパソコン（PowerShell）：`$env:HOTPEPPER_API_KEY="xxxx"` のあと `python -m uvicorn jimoto.server:app`
+   - Render：サービスの **Environment** で `HOTPEPPER_API_KEY` に入力して保存（自動で再起動します）
+
+ホットペッパーの利用規約により、画面に「Powered by ホットペッパーグルメ Webサービス」を表示しています。消さないでください。ホットペッパーに掲載している店が中心なので、居酒屋やレストランは多く、小さな個人店は少なめです。ホットペッパーの API が使えないときは、OSM の店だけを表示します。
+
 ## データ源の切り替え
 
 | `JIMOTO_PROVIDER` | 内容 | 必要なもの |

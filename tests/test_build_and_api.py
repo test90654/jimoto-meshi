@@ -140,3 +140,64 @@ def test_google_provider(db, monkeypatch):
     cats = {r["name"]: r["category"] for r in d["results"]}
     assert cats == {"スターバックスコーヒー 静岡駅南口店": "chain",
                     "炭焼きレストランさわやか 新静岡セノバ店": "local", "おでん屋 たけ": "indie"}
+
+
+def _hotpepper_mock(seen, shops, error=None):
+    def handler(req: httpx.Request):
+        seen.append(dict(req.url.params))
+        if error:
+            return httpx.Response(200, json={"results": {"api_version": "1.30", "error": [{"code": 2000, "message": error}]}})
+        start = int(req.url.params.get("start", 1))
+        page = shops[start - 1:start - 1 + 100]
+        return httpx.Response(200, json={"results": {
+            "api_version": "1.30", "results_available": len(shops), "results_returned": str(len(page)),
+            "results_start": start, "shop": page}})
+    return httpx.AsyncClient(transport=httpx.MockTransport(handler))
+
+
+HP_SHOPS = [
+    # OSM にもある店（同じ店としてまとめる）
+    {"id": "J001", "name": "鮨 まつ乃", "lat": 34.97305, "lng": 138.38505, "genre": {"name": "和食"},
+     "address": "静岡県静岡市葵区", "urls": {"pc": "https://www.hotpepper.jp/strJ001/"}, "station_name": "静岡"},
+    # OSM にない個人店
+    {"id": "J002", "name": "酒場 しずまえ", "lat": "34.9722", "lng": "138.3881", "genre": {"name": "居酒屋"},
+     "urls": {"pc": "https://www.hotpepper.jp/strJ002/"}, "budget": {"name": "3001～4000円"}},
+    # OSM にないチェーンの支店（ブランド辞書で広域チェーンと判定される）
+    {"id": "J003", "name": "スターバックスコーヒー 静岡駅前店", "lat": 34.9712, "lng": 138.3889,
+     "genre": {"name": "カフェ・スイーツ"}, "urls": {"pc": "https://www.hotpepper.jp/strJ003/"}},
+    # 半径の外
+    {"id": "J004", "name": "遠い店", "lat": 35.2, "lng": 138.9, "genre": {"name": "洋食"}},
+]
+
+
+def test_hotpepper_is_merged_with_osm(db):
+    seen = []
+    c = TestClient(create_app(str(db), "osm", hotpepper_key="hp-key", hotpepper_client=_hotpepper_mock(seen, HP_SHOPS)))
+    d = c.get("/api/search", params={"station": "静岡", **RULES}).json()
+    assert seen[0]["key"] == "hp-key" and seen[0]["range"] == "3" and seen[0]["count"] == "100"
+    by_name = {r["name"]: r for r in d["results"]}
+    # 同じ店は1件にまとまり、ホットペッパーのページと最寄り駅が付く
+    assert [r["name"] for r in d["results"]].count("鮨 まつ乃") == 1
+    assert by_name["鮨 まつ乃"]["url"].startswith("https://www.hotpepper.jp/")
+    assert by_name["鮨 まつ乃"]["source"] == "osm+hotpepper"
+    assert by_name["酒場 しずまえ"]["category"] == "indie" and by_name["酒場 しずまえ"]["source"] == "hotpepper"
+    assert by_name["スターバックスコーヒー 静岡駅前店"]["category"] == "chain"
+    assert "遠い店" not in by_name
+    assert {"name": "hotpepper", "text": "Powered by ホットペッパーグルメ Webサービス",
+            "url": "https://webservice.recruit.co.jp/"} in d["credits"]
+
+
+def test_hotpepper_keyword_and_paging(db):
+    seen = []
+    many = [{"id": f"K{i}", "name": f"店{i}", "lat": 34.9717, "lng": 138.389} for i in range(150)]
+    c = TestClient(create_app(str(db), "osm", hotpepper_key="k", hotpepper_client=_hotpepper_mock(seen, many)))
+    c.get("/api/search", params={"station": "静岡", "q": "うなぎ"})
+    assert [p["start"] for p in seen] == ["1", "101"] and seen[0]["keyword"] == "うなぎ"
+
+
+def test_hotpepper_failure_still_returns_osm(db):
+    seen = []
+    c = TestClient(create_app(str(db), "osm", hotpepper_key="bad",
+                              hotpepper_client=_hotpepper_mock(seen, [], error="APIキーが不正です")))
+    d = c.get("/api/search", params={"station": "静岡", **RULES}).json()
+    assert d["results"] and d["warnings"] == ["hotpepper から取得できませんでした"]

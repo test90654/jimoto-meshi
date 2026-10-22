@@ -13,5 +13,7 @@ services:
         value: "3.12.8"
       - key: JIMOTO_PUBLIC
         value: "1"
+      - key: HOTPEPPER_API_KEY  # ホットペッパーの API キー。Render の画面で入力する
+        sync: false
       - key: JIMOTO_DATA_URL
         value: https://github.com/test90654/jimoto-meshi/releases/download/data-latest/jimoto.db
